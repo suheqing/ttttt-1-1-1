@@ -1,0 +1,423 @@
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="MobileOptimized" content="320">
+    <title>安全页面加载中</title>
+    <style>
+        /* 基础样式重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+
+        /* 加载动画容器 */
+        .loader-container {
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease-out, visibility 0.5s;
+        }
+
+        .loader {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            animation: rotate-move 2s ease-in-out infinite;
+        }
+
+        .dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: auto;
+        }
+
+        .dot-3 {
+            background-color: #f74d75;
+            animation: dot-3-move 2s ease infinite;
+        }
+
+        .dot-2 {
+            background-color: #10beae;
+            animation: dot-2-move 2s ease infinite;
+        }
+
+        .dot-1 {
+            background-color: #ffe386;
+            animation: dot-1-move 2s ease infinite;
+        }
+
+        /* 加载文本 */
+        .loading-text {
+            margin-top: 20px;
+            color: #666;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            animation: pulse 1.5s infinite;
+        }
+
+        /* 错误信息 */
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            max-width: 90%;
+            width: 300px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            z-index: 1001;
+            display: none;
+        }
+
+        .error-message h3 {
+            color: #f74d75;
+            margin-bottom: 10px;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .error-message p {
+            color: #666;
+            margin-bottom: 15px;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+        }
+
+        .retry-btn {
+            padding: 8px 16px;
+            background-color: #10beae;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+
+        .retry-btn:hover {
+            background-color: #0da392;
+        }
+
+        /* 备用链接样式 */
+        .alternative-links {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .alternative-links p {
+            margin-bottom: 10px;
+        }
+
+        /* 动画定义 */
+        @keyframes dot-3-move {
+            20% { transform: scale(1) }
+            45% { transform: translateY(-18px) scale(.45) }
+            60% { transform: translateY(-25px) scale(.45) }
+            80% { transform: translateY(-25px) scale(.45) }
+            100% { transform: translateY(0px) scale(1) }
+        }
+
+        @keyframes dot-2-move {
+            20% { transform: scale(1) }
+            45% { transform: translate(-16px, 12px) scale(.45) }
+            60% { transform: translate(-20px, 15px) scale(.45) }
+            80% { transform: translate(-20px, 15px) scale(.45) }
+            100% { transform: translateY(0px) scale(1) }
+        }
+
+        @keyframes dot-1-move {
+            20% { transform: scale(1) }
+            45% { transform: translate(16px, 12px) scale(.45) }
+            60% { transform: translate(20px, 15px) scale(.45) }
+            80% { transform: translate(20px, 15px) scale(.45) }
+            100% { transform: translateY(0px) scale(1) }
+        }
+
+        @keyframes rotate-move {
+            55% { transform: rotate(0deg) }
+            80% { transform: rotate(360deg) }
+            100% { transform: rotate(360deg) }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        /* iframe 样式 */
+        .content-iframe {
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            left: 0;
+            top: 0;
+            border: none;
+            z-index: 1;
+        }
+
+        /* 隐藏加载器的类 */
+        .loader-hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载动画容器 -->
+    <div class="loader-container">
+        <div class="loader">
+            <div class="dot dot-1"></div>
+            <div class="dot dot-2"></div>
+            <div class="dot dot-3"></div>
+        </div>
+        <div class="loading-text">加载中...</div>
+    </div>
+
+    <!-- 错误信息显示 -->
+    <div class="error-message" id="errorMessage">
+        <h3>加载失败</h3>
+        <p id="errorDetails">无法加载指定的内容，请重试</p>
+        <button class="retry-btn" onclick="retryLoad()">重试</button>
+        <div class="alternative-links">
+            <p>或尝试备用链接：</p>
+            <button class="retry-btn" onclick="loadAlternativeUrl()">备用地址1</button>
+            <!-- 可以根据需要添加更多备用地址 -->
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let iframe = null;
+        const MAX_LOAD_TIME = 15000; // 最大加载时间15秒
+        let loadTimeout = null;
+        // 备用链接 - 请替换为你的实际备用地址
+        const ALTERNATIVE_URLS = [
+            "https://你的gitee页面地址",
+            "https://你的腾讯云托管地址"
+        ];
+        let currentAltUrlIndex = 0;
+
+        // 初始化函数
+        function init() {
+            // 解析URL参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedParam = urlParams.get('c');
+            let trueurl = null;
+
+            try {
+                // 解码并验证URL
+                if (encodedParam) {
+                    trueurl = atob(encodedParam);
+                    
+                    // 验证URL格式
+                    if (!isValidUrl(trueurl)) {
+                        throw new Error('无效的URL格式');
+                    }
+                } else {
+                    throw new Error('未找到URL参数');
+                }
+
+                // 加载iframe
+                loadIframe(trueurl);
+
+            } catch (error) {
+                console.error('初始化错误:', error);
+                showError(error.message);
+            }
+        }
+
+        // 验证URL有效性
+        function isValidUrl(url) {
+            try {
+                const parsedUrl = new URL(url);
+                // 只允许http和https协议
+                return ['http:', 'https:'].includes(parsedUrl.protocol);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // 加载iframe内容
+        function loadIframe(url) {
+            // 清除之前的iframe
+            if (iframe) {
+                document.body.removeChild(iframe);
+            }
+
+            // 创建新iframe
+            iframe = document.createElement('iframe');
+            iframe.className = 'content-iframe';
+            iframe.src = url;
+            iframe.setAttribute('loading', 'lazy');
+            
+            // 加载事件处理
+            let loadCompleted = false;
+            
+            // 成功加载
+            iframe.onload = function() {
+                if (!loadCompleted) {
+                    loadCompleted = true;
+                    clearTimeout(loadTimeout);
+                    hideLoader();
+                    bindMouseWheel(iframe);
+                    console.log('成功加载URL:', url);
+                }
+            };
+            
+            // 加载错误
+            iframe.onerror = function(error) {
+                if (!loadCompleted) {
+                    loadCompleted = true;
+                    clearTimeout(loadTimeout);
+                    console.error('iframe加载错误:', error);
+                    showError('无法加载内容，请检查URL是否有效');
+                }
+            };
+            
+            // 超时处理
+            loadTimeout = setTimeout(() => {
+                if (!loadCompleted) {
+                    loadCompleted = true;
+                    console.error('加载超时:', url);
+                    showError('加载超时，请稍后重试或使用备用地址');
+                }
+            }, MAX_LOAD_TIME);
+            
+            document.body.appendChild(iframe);
+        }
+
+        // 加载备用链接
+        function loadAlternativeUrl() {
+            if (currentAltUrlIndex >= ALTERNATIVE_URLS.length) {
+                currentAltUrlIndex = 0;
+            }
+            
+            const altUrl = ALTERNATIVE_URLS[currentAltUrlIndex];
+            currentAltUrlIndex++;
+            
+            // 隐藏错误信息
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            // 显示加载器
+            const loader = document.querySelector('.loader-container');
+            loader.classList.remove('loader-hidden');
+            
+            // 加载备用URL
+            loadIframe(altUrl);
+        }
+
+        // 隐藏加载动画
+        function hideLoader() {
+            const loader = document.querySelector('.loader-container');
+            loader.classList.add('loader-hidden');
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            hideLoader();
+            const errorElement = document.getElementById('errorMessage');
+            const detailsElement = document.getElementById('errorDetails');
+            detailsElement.textContent = message;
+            errorElement.style.display = 'block';
+            
+            // 如果是微信环境，显示额外提示
+            if (isWechatBrowser()) {
+                const wechatNote = document.createElement('p');
+                wechatNote.style.fontSize = '12px';
+                wechatNote.style.color = '#999';
+                wechatNote.style.marginTop = '10px';
+                wechatNote.textContent = '提示：微信可能限制部分链接，建议使用备用地址或在浏览器中打开';
+                detailsElement.parentNode.insertBefore(wechatNote, detailsElement.nextSibling);
+            }
+        }
+
+        // 检测是否是微信浏览器
+        function isWechatBrowser() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            return userAgent.indexOf('micromessenger') !== -1;
+        }
+
+        // 重试加载
+        function retryLoad() {
+            // 隐藏错误信息
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            // 显示加载器
+            const loader = document.querySelector('.loader-container');
+            loader.classList.remove('loader-hidden');
+            
+            // 重新初始化
+            init();
+        }
+
+        // 处理鼠标滚轮事件
+        function bindMouseWheel(ifr) {
+            try {
+                const doc = ifr.contentWindow.document;
+                const isFirefox = navigator.userAgent.indexOf('Firefox') !== -1;
+                
+                // 滚轮事件处理函数
+                function handleWheel(e) {
+                    e.preventDefault();
+                    
+                    // 确定滚动方向和距离
+                    const delta = isFirefox ? -e.detail : e.wheelDelta;
+                    const scrollAmount = delta > 0 ? -50 : 50;
+                    
+                    // 应用滚动
+                    if (doc.scrollingElement) {
+                        doc.scrollingElement.scrollTop += scrollAmount;
+                    } else if (doc.body.scrollTop !== undefined) {
+                        doc.body.scrollTop += scrollAmount;
+                    } else if (doc.documentElement.scrollTop !== undefined) {
+                        doc.documentElement.scrollTop += scrollAmount;
+                    }
+                }
+                
+                // 绑定事件
+                if (isFirefox) {
+                    doc.addEventListener('DOMMouseScroll', handleWheel, { passive: false });
+                } else {
+                    doc.addEventListener('mousewheel', handleWheel, { passive: false });
+                }
+                
+            } catch (e) {
+                console.warn('跨域限制，无法绑定鼠标滚轮事件:', e);
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
